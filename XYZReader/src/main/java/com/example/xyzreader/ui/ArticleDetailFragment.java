@@ -16,6 +16,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.GregorianCalendar;
 
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ShareCompat;
@@ -50,7 +51,8 @@ public class ArticleDetailFragment extends Fragment implements
 
     public static final String ARG_ITEM_ID = "item_id";
     private static final float PARALLAX_FACTOR = 1.25f;
-
+    private static final int MAX_COLOR_COUNT = 12;
+    private static final int MUTED_COLOR_MASK = 0xFF333333;
     private Cursor mCursor;
     private long mItemId;
     private View mRootView;
@@ -61,6 +63,8 @@ public class ArticleDetailFragment extends Fragment implements
     DrawInsetsFrameLayout mDrawInsetsFrameLayout;
     private ColorDrawable mStatusBarColorDrawable;
 
+    @BindView(R.id.progress_bar)
+    AVLoadingIndicatorView mProgressBar;
     private int mTopInset;
     @BindView(R.id.photo_container)
     View mPhotoContainerView;
@@ -208,7 +212,7 @@ public class ArticleDetailFragment extends Fragment implements
         TextView titleView = (TextView) mRootView.findViewById(R.id.article_title);
         TextView bylineView = (TextView) mRootView.findViewById(R.id.article_byline);
         bylineView.setMovementMethod(new LinkMovementMethod());
-        TextView bodyView = (TextView) mRootView.findViewById(R.id.article_body);
+        final TextView bodyView = (TextView) mRootView.findViewById(R.id.article_body);
 
 
         bodyView.setTypeface(Typeface.createFromAsset(getResources().getAssets(), "Rosario-Regular.ttf"));
@@ -236,22 +240,53 @@ public class ArticleDetailFragment extends Fragment implements
                                 + "</font>"));
 
             }
-            bodyView.setText(Html.fromHtml(mCursor.getString(ArticleLoader.Query.BODY).replaceAll("(\r\n|\n)", "<br />")));
+
+            // avoid hogging ui thread
+            new AsyncTask<String,String,String>(){
+
+                @Override
+                protected String doInBackground(String... params) {
+                    String content = String.valueOf(Html.fromHtml(mCursor.getString(ArticleLoader.Query.BODY).replaceAll("(\r\n|\n)" +
+                            "", "<br />")));
+                    return content;
+                }
+
+                @Override
+                protected void onPostExecute(String s) {
+                    bodyView.setText(s);
+                }
+            }.execute();
 
 
             ImageLoaderHelper.getInstance(getActivity()).getImageLoader()
                     .get(mCursor.getString(ArticleLoader.Query.PHOTO_URL), new ImageLoader.ImageListener() {
+
+
                         @Override
-                        public void onResponse(ImageLoader.ImageContainer imageContainer, boolean b) {
+                        public void onResponse(final ImageLoader.ImageContainer imageContainer, boolean b) {
                             Bitmap bitmap = imageContainer.getBitmap();
                             if (bitmap != null) {
-                                Palette p = Palette.generate(bitmap, 12);
-                                mMutedColor = p.getDarkMutedColor(0xFF333333);
-                                mPhotoView.setImageBitmap(imageContainer.getBitmap());
-                                mRootView.findViewById(R.id.meta_bar)
-                                        .setBackgroundColor(mMutedColor);
-                                updateStatusBar();
-                                setMainViewVisible(true);
+
+                                // need to do this on seperate thread as the palete generate image can hog the UI long
+                                new AsyncTask<Bitmap,Palette,Palette>(){
+
+                                    @Override
+                                    protected Palette doInBackground(Bitmap... params) {
+                                        return Palette.from(params[0]).maximumColorCount(MAX_COLOR_COUNT).generate();
+                                    }
+
+                                    @Override
+                                    protected void onPostExecute(Palette p) {
+                                        mMutedColor = p.getDarkMutedColor(MUTED_COLOR_MASK);
+                                        mPhotoView.setImageBitmap(imageContainer.getBitmap());
+                                        mRootView.findViewById(R.id.meta_bar)
+                                                .setBackgroundColor(mMutedColor);
+                                        updateStatusBar();
+                                        setMainViewVisible(true);
+                                    }
+                                }.execute(bitmap);
+
+
                             }
                         }
 
@@ -260,6 +295,7 @@ public class ArticleDetailFragment extends Fragment implements
 
                         }
                     });
+
         } else {
             setMainViewVisible(false);
             titleView.setText("N/A");
@@ -275,10 +311,12 @@ public class ArticleDetailFragment extends Fragment implements
         if (!yes){
             mScrollView.setVisibility(View.GONE);
             mFab.setVisibility(View.GONE);
+            mProgressBar.smoothToShow();
         }
         else{
             mScrollView.setVisibility(View.VISIBLE);
             mFab.setVisibility(View.VISIBLE);
+            mProgressBar.smoothToHide();
         }
 
     }

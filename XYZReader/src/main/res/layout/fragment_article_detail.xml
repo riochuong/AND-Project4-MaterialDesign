@@ -83,6 +83,8 @@
                     android:textColor="@color/ltgray"
                     android:textColorLink="@color/theme_accent"
                     android:textSize="@dimen/detail_body_text_size"
+                    android:ellipsize="end"
+                    android:maxLines='@integer/max_body_line'
                     android:lineSpacingMultiplier="@fraction/detail_body_line_spacing_multiplier" />
 
             </com.example.xyzreader.ui.MaxWidthLinearLayout>
@@ -102,5 +104,12 @@
                  android:elevation="@dimen/fab_elevation"
                  android:contentDescription="@string/action_share" />
 
+    <com.wang.avi.AVLoadingIndicatorView
+        android:id="@+id/progress_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:indicatorName="BallPulseIndicator"
+        android:layout_gravity="center_vertical|center_horizontal"
+        />
 
 </com.example.xyzreader.ui.DrawInsetsFrameLayout>

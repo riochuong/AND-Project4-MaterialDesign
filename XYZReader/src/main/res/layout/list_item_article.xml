@@ -43,6 +43,7 @@
                 app:layout_rowSpan="2"
                 app:layout_columnWeight="1"
                 app:layout_rowWeight="1"
+                android:paddingTop="@dimen/article_padding"
                 app:layout_gravity="end"
                 >
 

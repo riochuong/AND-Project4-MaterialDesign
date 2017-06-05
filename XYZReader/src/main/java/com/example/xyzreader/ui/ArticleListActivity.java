@@ -123,6 +123,7 @@ public class ArticleListActivity extends AppCompatActivity implements
 
     @Override
     public Loader<Cursor> onCreateLoader(int i, Bundle bundle) {
+        Timber.d("Start loading all articles");
         return ArticleLoader.newAllArticlesInstance(this);
     }
 

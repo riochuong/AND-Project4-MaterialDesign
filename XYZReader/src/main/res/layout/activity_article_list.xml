@@ -5,15 +5,13 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-
-
     <android.support.design.widget.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="@dimen/app_bar_height">
         <android.support.design.widget.CollapsingToolbarLayout
             android:id="@+id/toolbar_container"
             android:layout_width="match_parent"
-            android:layout_height="112dp"
+            android:layout_height="@dimen/collapse_bar_height"
             app:layout_scrollFlags="scroll|exitUntilCollapsed"
             android:elevation="@dimen/collapse_bar_elev">
 

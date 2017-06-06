@@ -1,13 +1,17 @@
 package com.example.xyzreader.ui;
 
+import android.app.ActivityOptions;
 import android.app.LoaderManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.Loader;
+import android.content.res.Resources;
 import android.database.Cursor;
+import android.os.Build;
 import android.os.Bundle;
+import android.support.v4.app.SharedElementCallback;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.RecyclerView;
@@ -18,6 +22,7 @@ import android.text.format.DateUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.TextView;
 
 import com.example.xyzreader.R;
@@ -29,6 +34,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.List;
+import java.util.Map;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -45,6 +52,8 @@ public class ArticleListActivity extends AppCompatActivity implements
 
     private static final String TAG = ArticleListActivity.class.toString();
     private static final int LOADER_ID = 0;
+    public static final String EXIT_POS_STR = "exit_pos";
+    private static final String URI_DATA = "uri_data";
     @BindView(R.id.toolbar)
     Toolbar mToolbar;
     @BindView(R.id.swipe_refresh_layout)
@@ -57,6 +66,10 @@ public class ArticleListActivity extends AppCompatActivity implements
     private SimpleDateFormat outputFormat = new SimpleDateFormat();
     // Most time functions can only handle 1902 - 2037
     private GregorianCalendar START_OF_EPOCH = new GregorianCalendar(2,1,1);
+    // transition enter position
+    private int enterPosition;
+    private int exitPosition;
+    private static final String VH_TAG  = "vh_tag";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,15 +82,16 @@ public class ArticleListActivity extends AppCompatActivity implements
             public void onRefresh() {
                 Timber.d("Refresh Layout. Force loader to reload");
                 // force loader reload
-                getLoaderManager().getLoader(LOADER_ID).forceLoad();
+                if (! mIsRefreshing){
+                    refresh();
+                }
             }
+
         });
 
         getLoaderManager().initLoader(LOADER_ID, null, this);
 
-        if (savedInstanceState == null) {
-            refresh();
-        }
+
     }
 
     private void refresh() {
@@ -140,13 +154,48 @@ public class ArticleListActivity extends AppCompatActivity implements
         stopRefreshingUI();
     }
 
+
+
     @Override
     public void onLoaderReset(Loader<Cursor> loader) {
         mRecyclerView.setAdapter(null);
     }
 
+
+    private void setCallBack (final int enterPosition){
+        this.enterPosition = enterPosition;
+        setExitSharedElementCallback(new SharedElementCallback() {
+            // @Override
+            public void onMapSharedElements(List<String> names, Map<String, View> sharedElements) {
+                if (exitPosition != enterPosition && names.size() > 0) {
+                    View view = mRecyclerView.findViewWithTag(exitPosition+"");
+                    //view might get recycle by recylerview. In that case we cannot do much
+                    if (view != null){
+                        names.clear();
+                        sharedElements.clear();
+                        names.add(view.getTransitionName());
+                        sharedElements.put(view.getTransitionName(), view);
+                    }
+
+                }
+                setExitSharedElementCallback((SharedElementCallback) null);
+            }
+        });
+    }
+
+    @Override
+    public void onActivityReenter(int resultCode, Intent data) {
+        super.onActivityReenter(resultCode, data);
+        if (resultCode == RESULT_OK && data != null) {
+            exitPosition = data.getIntExtra(EXIT_POS_STR, enterPosition);
+        }
+    }
+
     private class Adapter extends RecyclerView.Adapter<ViewHolder> {
         private Cursor mCursor;
+        private int lastAnimatedPosition = -1;
+        private static final int ANIMATION_DUR = 700;
+        private static final int CONSEC_DELAY = 300;
 
         public Adapter(Cursor cursor) {
             mCursor = cursor;
@@ -158,6 +207,22 @@ public class ArticleListActivity extends AppCompatActivity implements
             return mCursor.getLong(ArticleLoader.Query._ID);
         }
 
+        private void runEnterAnimation(View view, int position) {
+            if (mCursor.getCount() <= 0 || position >= getItemCount()) {
+                return;
+            }
+
+            if (position > lastAnimatedPosition) {
+                lastAnimatedPosition = position;
+                view.setTranslationY(Resources.getSystem().getDisplayMetrics().heightPixels);
+                view.animate()
+                        .translationY(0)
+                        .setInterpolator(new DecelerateInterpolator(3.f))
+                        .setDuration(ANIMATION_DUR + position * CONSEC_DELAY)
+                        .start();
+            }
+        }
+
         @Override
         public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
             View view = getLayoutInflater().inflate(R.layout.list_item_article, parent, false);
@@ -165,8 +230,20 @@ public class ArticleListActivity extends AppCompatActivity implements
             view.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    startActivity(new Intent(Intent.ACTION_VIEW,
-                            ItemsContract.Items.buildItemUri(getItemId(vh.getAdapterPosition()))));
+                    Intent intent = new Intent(Intent.ACTION_VIEW,
+                                    ItemsContract.Items.buildItemUri(getItemId(vh.getAdapterPosition())));
+                    Intent startAct = new Intent(ArticleListActivity.this, ArticleDetailActivity.class);
+                    startAct.putExtra(URI_DATA,ItemsContract.Items.
+                                                        buildItemUri(getItemId(vh.getAdapterPosition())).toString());
+                    String transName = getString(R.string.trans_image_show);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        startActivityForResult(startAct,0,
+                                            ActivityOptions.makeSceneTransitionAnimation(ArticleListActivity.this, vh
+                                                    .thumbnailView, transName).toBundle());
+                        setCallBack(vh.getAdapterPosition());
+                    } else{
+                        startActivity(intent);
+                    }
                 }
             });
             return vh;
@@ -185,8 +262,10 @@ public class ArticleListActivity extends AppCompatActivity implements
 
         @Override
         public void onBindViewHolder(ViewHolder holder, int position) {
+            runEnterAnimation(holder.itemView, position);
             mCursor.moveToPosition(position);
             holder.titleView.setText(mCursor.getString(ArticleLoader.Query.TITLE));
+            holder.setTagForView(position);
             Date publishedDate = parsePublishedDate();
             if (!publishedDate.before(START_OF_EPOCH.getTime())) {
 
@@ -215,6 +294,10 @@ public class ArticleListActivity extends AppCompatActivity implements
         }
     }
 
+
+
+
+
     public static class ViewHolder extends RecyclerView.ViewHolder {
         public DynamicHeightNetworkImageView thumbnailView;
         public TextView titleView;
@@ -225,6 +308,14 @@ public class ArticleListActivity extends AppCompatActivity implements
             thumbnailView = (DynamicHeightNetworkImageView) view.findViewById(R.id.thumbnail);
             titleView = (TextView) view.findViewById(R.id.article_title);
             subtitleView = (TextView) view.findViewById(R.id.article_subtitle);
+
+
         }
+
+        // quick hack for finding the correct view to animate
+        public void setTagForView(int position){
+            thumbnailView.setTag(position+"");
+        }
+
     }
 }

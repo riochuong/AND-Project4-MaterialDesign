@@ -17,17 +17,22 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v13.app.ActivityCompat;
 import android.support.v4.app.ShareCompat;
 import android.support.v7.graphics.Palette;
 import android.text.Html;
 import android.text.format.DateUtils;
 import android.text.method.LinkMovementMethod;
+import android.transition.TransitionInflater;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -50,13 +55,16 @@ public class ArticleDetailFragment extends Fragment implements
     private static final String TAG = "ArticleDetailFragment";
 
     public static final String ARG_ITEM_ID = "item_id";
+    public static final String IS_TRANS = "is_trans";
     private static final float PARALLAX_FACTOR = 1.25f;
     private static final int MAX_COLOR_COUNT = 12;
     private static final int MUTED_COLOR_MASK = 0xFF333333;
+    private static final String VIEW_TAG = "view_tag" ;
     private Cursor mCursor;
     private long mItemId;
     private View mRootView;
     private int mMutedColor = 0xFF333333;
+    String mTransitionName = null;
     @BindView(R.id.scrollview)
     ObservableScrollView mScrollView;
     @BindView(R.id.draw_insets_frame_layout)
@@ -76,6 +84,7 @@ public class ArticleDetailFragment extends Fragment implements
     private int mScrollY;
     private boolean mIsCard = false;
     private int mStatusBarFullOpacityBottom;
+    private boolean isTransComplete = false;
 
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss");
     // Use default locale format
@@ -90,9 +99,11 @@ public class ArticleDetailFragment extends Fragment implements
     public ArticleDetailFragment() {
     }
 
-    public static ArticleDetailFragment newInstance(long itemId) {
+    public static ArticleDetailFragment newInstance(long itemId, boolean isTransitioning, int viewTag) {
         Bundle arguments = new Bundle();
         arguments.putLong(ARG_ITEM_ID, itemId);
+        arguments.putBoolean(IS_TRANS, isTransitioning);
+        arguments.putInt(VIEW_TAG, viewTag);
         ArticleDetailFragment fragment = new ArticleDetailFragment();
         fragment.setArguments(arguments);
         return fragment;
@@ -110,6 +121,7 @@ public class ArticleDetailFragment extends Fragment implements
         mStatusBarFullOpacityBottom = getResources().getDimensionPixelSize(
                 R.dimen.detail_card_top_margin);
         setHasOptionsMenu(true);
+
     }
 
     public ArticleDetailActivity getActivityCast() {
@@ -132,6 +144,7 @@ public class ArticleDetailFragment extends Fragment implements
             Bundle savedInstanceState) {
         mRootView = inflater.inflate(R.layout.fragment_article_detail, container, false);
         ButterKnife.bind(this,mRootView);
+        mPhotoView.setTag(getArguments().getInt(VIEW_TAG)+"");
         mDrawInsetsFrameLayout.setOnInsetsCallback(new DrawInsetsFrameLayout.OnInsetsCallback() {
             @Override
             public void onInsetsChanged(Rect insets) {
@@ -161,6 +174,7 @@ public class ArticleDetailFragment extends Fragment implements
 
         bindViews();
         updateStatusBar();
+
         return mRootView;
     }
 
@@ -202,6 +216,15 @@ public class ArticleDetailFragment extends Fragment implements
             Log.i(TAG, "passing today's date");
             return new Date();
         }
+    }
+
+
+
+    @Override
+    public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+
     }
 
     private void bindViews() {
@@ -277,12 +300,16 @@ public class ArticleDetailFragment extends Fragment implements
 
                                     @Override
                                     protected void onPostExecute(Palette p) {
+                                        setMainViewVisible(true);
                                         mMutedColor = p.getDarkMutedColor(MUTED_COLOR_MASK);
                                         mPhotoView.setImageBitmap(imageContainer.getBitmap());
                                         mRootView.findViewById(R.id.meta_bar)
                                                 .setBackgroundColor(mMutedColor);
                                         updateStatusBar();
-                                        setMainViewVisible(true);
+                                        if (getArguments().getBoolean(IS_TRANS) && !isTransComplete) {
+                                            scheduleStartPostponedTransition(mPhotoView);
+                                        }
+
                                     }
                                 }.execute(bitmap);
 
@@ -304,6 +331,19 @@ public class ArticleDetailFragment extends Fragment implements
         }
     }
 
+    private void scheduleStartPostponedTransition(final View sharedElement) {
+        sharedElement.getViewTreeObserver().addOnPreDrawListener(
+                new ViewTreeObserver.OnPreDrawListener() {
+                    @Override
+                    public boolean onPreDraw() {
+                        sharedElement.getViewTreeObserver().removeOnPreDrawListener(this);
+                        ActivityCompat.startPostponedEnterTransition(getActivity());
+                        isTransComplete = true;
+                        return true;
+                    }
+                });
+    }
+
     /**
      * Disable main view and show the loading icon
      */
@@ -314,9 +354,10 @@ public class ArticleDetailFragment extends Fragment implements
             mProgressBar.smoothToShow();
         }
         else{
+
             mScrollView.setVisibility(View.VISIBLE);
             mFab.setVisibility(View.VISIBLE);
-            mProgressBar.smoothToHide();
+            mProgressBar.hide();
         }
 
     }
@@ -343,7 +384,6 @@ public class ArticleDetailFragment extends Fragment implements
             mCursor.close();
             mCursor = null;
         }
-
         bindViews();
     }
 

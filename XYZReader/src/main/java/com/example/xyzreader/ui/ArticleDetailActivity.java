@@ -3,14 +3,19 @@ package com.example.xyzreader.ui;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.LoaderManager;
+import android.content.Intent;
 import android.content.Loader;
 import android.database.Cursor;
 import android.graphics.drawable.ColorDrawable;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v13.app.FragmentStatePagerAdapter;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.SharedElementCallback;
+import android.support.v4.app.TaskStackBuilder;
 import android.support.v4.view.ViewPager;
-import android.support.v7.app.ActionBarActivity;
 import android.support.v7.app.AppCompatActivity;
 import android.util.TypedValue;
 import android.view.View;
@@ -20,7 +25,9 @@ import android.view.WindowInsets;
 import com.example.xyzreader.R;
 import com.example.xyzreader.data.ArticleLoader;
 import com.example.xyzreader.data.ItemsContract;
-import com.wang.avi.AVLoadingIndicatorView;
+
+import java.util.List;
+import java.util.Map;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -32,6 +39,8 @@ import timber.log.Timber;
 public class ArticleDetailActivity extends AppCompatActivity
         implements LoaderManager.LoaderCallbacks<Cursor> {
 
+    private static final String EXIT_POS = "exit_pos" ;
+    private static final String URI_DATA = "uri_data";
     private Cursor mCursor;
     private long mStartId;
 
@@ -47,6 +56,10 @@ public class ArticleDetailActivity extends AppCompatActivity
     @BindView(R.id.action_up)
     View mUpButton;
 
+    private boolean mIsReturning = false;
+
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -55,6 +68,7 @@ public class ArticleDetailActivity extends AppCompatActivity
                     View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
                             View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
         }
+        ActivityCompat.postponeEnterTransition(this);
         setContentView(R.layout.activity_article_detail);
         ButterKnife.bind(this);
         getLoaderManager().initLoader(0, null, this);
@@ -109,8 +123,9 @@ public class ArticleDetailActivity extends AppCompatActivity
         }
 
         if (savedInstanceState == null) {
-            if (getIntent() != null && getIntent().getData() != null) {
-                mStartId = ItemsContract.Items.getItemId(getIntent().getData());
+            if (getIntent() != null && getIntent().getStringExtra(URI_DATA) != null) {
+                //mStartId = ItemsContract.Items.getItemId(getIntent().getData());
+                mStartId =ItemsContract.Items.getItemId(Uri.parse(getIntent().getStringExtra(URI_DATA)));
                 mSelectedItemId = mStartId;
             }
         }
@@ -121,6 +136,8 @@ public class ArticleDetailActivity extends AppCompatActivity
         Timber.d("Start Loading All Articles Details");
         return ArticleLoader.newAllArticlesInstance(this);
     }
+
+
 
     @Override
     public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
@@ -157,6 +174,49 @@ public class ArticleDetailActivity extends AppCompatActivity
         }
     }
 
+    private void setResult(){
+        int pos = mPager.getCurrentItem();
+        Intent intent = new Intent();
+        intent.putExtra(EXIT_POS, pos);
+        setResult(RESULT_OK, intent);
+        View shareView = mPager.findViewWithTag(pos+"");
+        if (shareView != null){
+            setSharedElementCallback(shareView);
+        }
+    }
+
+    @Override
+    public void supportFinishAfterTransition() {
+        // pass data back to sourc
+        setResult();
+        super.supportFinishAfterTransition();
+    }
+
+    @Override
+    public void onBackPressed() {
+        setResult();
+        super.onBackPressed();
+    }
+
+    @Override
+    protected void onPause() {
+        supportFinishAfterTransition();
+        super.onPause();
+    }
+
+    private void setSharedElementCallback(final View view) {
+        setEnterSharedElementCallback(new SharedElementCallback() {
+            @Override
+            public void onMapSharedElements(List<String> names, Map<String, View> sharedElements) {
+                names.clear();
+                sharedElements.clear();
+                names.add(view.getTransitionName());
+                sharedElements.put(view.getTransitionName(), view);
+            }
+        });
+    }
+
+
     private void updateUpButtonPosition() {
         int upButtonNormalBottom = mTopInset + mUpButton.getHeight();
         mUpButton.setTranslationY(Math.min(mSelectedItemUpButtonFloor - upButtonNormalBottom, 0));
@@ -180,7 +240,9 @@ public class ArticleDetailActivity extends AppCompatActivity
         @Override
         public Fragment getItem(int position) {
             mCursor.moveToPosition(position);
-            return ArticleDetailFragment.newInstance(mCursor.getLong(ArticleLoader.Query._ID));
+            long fragmentId = mCursor.getLong(ArticleLoader.Query._ID);
+            boolean isTrans = fragmentId == mSelectedItemId;
+            return ArticleDetailFragment.newInstance(fragmentId, isTrans, position);
         }
 
         @Override

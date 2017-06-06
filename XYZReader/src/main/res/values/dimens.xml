@@ -8,7 +8,7 @@
     <dimen name="fab_press_translation_z">6dp</dimen>
     <dimen name="fab_margin">24dp</dimen>
     <dimen name="tool_bar_height">60dp</dimen>
-    <dimen name="app_bar_height">150dp</dimen>
+    <dimen name="app_bar_height">100dp</dimen>
     <dimen name="collapse_bar_elev">8dp</dimen>
     <dimen name="detaim_img_height">150dp</dimen>
     <dimen name="content_image_height">100dp</dimen>

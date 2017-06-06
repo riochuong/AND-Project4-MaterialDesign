@@ -3,11 +3,14 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    app:theme="@style/Theme.Bacon.Detail"
+    android:orientation="vertical"
+    android:background="?colorPrimary">
 
     <android.support.design.widget.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="@dimen/app_bar_height">
+        android:layout_height="@dimen/app_bar_height"
+        android:background="?colorPrimaryDark">
         <android.support.design.widget.CollapsingToolbarLayout
             android:id="@+id/toolbar_container"
             android:layout_width="match_parent"
@@ -17,20 +20,37 @@
 
             <android.support.v7.widget.Toolbar
                 android:id="@+id/toolbar"
-                app:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
                 android:layout_marginLeft="@dimen/list_toolbar_side_margin"
                 android:layout_marginRight="@dimen/list_toolbar_side_margin"
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/tool_bar_height"
                 app:layout_collapseMode="pin"
-                app:layout_scrollFlags="scroll|enterAlways"
+                app:layout_scrollFlags="scroll|exitUntilCollapsed"
                 android:layout_gravity="bottom">
 
-                <ImageView
+                <LinearLayout
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:src="@drawable/logo"
-                    android:contentDescription="@string/app_name" />
+                    android:orientation="horizontal"
+                    android:layout_height="match_parent">
+
+
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:src="@mipmap/ic_launcher"
+                        android:layout_marginEnd="@dimen/article_img_margin"
+                        android:contentDescription="@string/app_name" />
+
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:src="@drawable/logo"
+                        android:contentDescription="@string/app_name" />
+
+
+                </LinearLayout>
+
+
 
             </android.support.v7.widget.Toolbar>
         </android.support.design.widget.CollapsingToolbarLayout>

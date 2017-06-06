@@ -9,5 +9,7 @@
 
     <string name="up">Up</string>
     <string name="trans_image_show">show_image</string>
+    <string name="no_network_error">\"No Internet Connection. Cannot Refresh\"</string>
+    <string name="no_data_available">No Data Available for Display</string>
 
 </resources>

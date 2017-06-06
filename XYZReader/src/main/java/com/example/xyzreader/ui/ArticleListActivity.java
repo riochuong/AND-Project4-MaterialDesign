@@ -11,6 +11,8 @@ import android.content.res.Resources;
 import android.database.Cursor;
 import android.os.Build;
 import android.os.Bundle;
+import android.support.design.widget.CoordinatorLayout;
+import android.support.design.widget.Snackbar;
 import android.support.v4.app.SharedElementCallback;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
@@ -29,6 +31,7 @@ import com.example.xyzreader.R;
 import com.example.xyzreader.data.ArticleLoader;
 import com.example.xyzreader.data.ItemsContract;
 import com.example.xyzreader.data.UpdaterService;
+import com.example.xyzreader.remote.NetworkUtil;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -61,6 +64,12 @@ public class ArticleListActivity extends AppCompatActivity implements
     @BindView(R.id.recycler_view)
     RecyclerView mRecyclerView;
 
+    @BindView(R.id.root_layout)
+    CoordinatorLayout mRootLayout;
+
+    @BindView(R.id.empty_view)
+    TextView emptyView;
+
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss");
     // Use default locale format
     private SimpleDateFormat outputFormat = new SimpleDateFormat();
@@ -88,13 +97,20 @@ public class ArticleListActivity extends AppCompatActivity implements
             }
 
         });
-
         getLoaderManager().initLoader(LOADER_ID, null, this);
+    }
 
-
+    private void displaySnackBarError(String error){
+        Snackbar.make(mRootLayout, error,Snackbar.LENGTH_LONG).show();
     }
 
     private void refresh() {
+        if (!NetworkUtil.isConnectToNetWork(this)){
+            mIsRefreshing = false;
+            mSwipeRefreshLayout.setRefreshing(mIsRefreshing);
+            displaySnackBarError(getString(R.string.no_network_error));
+            return;
+        }
         startService(new Intent(this, UpdaterService.class));
     }
 
@@ -119,6 +135,9 @@ public class ArticleListActivity extends AppCompatActivity implements
             if (UpdaterService.BROADCAST_ACTION_STATE_CHANGE.equals(intent.getAction())) {
                 mIsRefreshing = intent.getBooleanExtra(UpdaterService.EXTRA_REFRESHING, false);
                 updateRefreshingUI();
+                if (! NetworkUtil.isConnectToNetWork(ArticleListActivity.this)){
+                    displaySnackBarError(getString(R.string.no_network_error));
+                }
             }
         }
     };
@@ -143,15 +162,23 @@ public class ArticleListActivity extends AppCompatActivity implements
 
     @Override
     public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
-        Adapter adapter = new Adapter(cursor);
-        adapter.setHasStableIds(true);
-        mRecyclerView.setAdapter(adapter);
-        int columnCount = getResources().getInteger(R.integer.list_column_count);
-        StaggeredGridLayoutManager sglm =
-                new StaggeredGridLayoutManager(columnCount, StaggeredGridLayoutManager.VERTICAL);
-        mRecyclerView.setLayoutManager(sglm);
         // stop refreshing layout here
-        stopRefreshingUI();
+        if (cursor == null || cursor.getCount() == 0){
+            mRecyclerView.setVisibility(View.GONE);
+            emptyView.setVisibility(View.VISIBLE);
+        }
+        else{
+            mRecyclerView.setVisibility(View.VISIBLE);
+            emptyView.setVisibility(View.GONE);
+            Adapter adapter = new Adapter(cursor);
+            adapter.setHasStableIds(true);
+            mRecyclerView.setAdapter(adapter);
+            int columnCount = getResources().getInteger(R.integer.list_column_count);
+            StaggeredGridLayoutManager sglm =
+                    new StaggeredGridLayoutManager(columnCount, StaggeredGridLayoutManager.VERTICAL);
+            mRecyclerView.setLayoutManager(sglm);
+            stopRefreshingUI();
+        }
     }
 
 
@@ -214,7 +241,8 @@ public class ArticleListActivity extends AppCompatActivity implements
 
             if (position > lastAnimatedPosition) {
                 lastAnimatedPosition = position;
-                view.setTranslationY(Resources.getSystem().getDisplayMetrics().heightPixels);
+                float height = Resources.getSystem().getDisplayMetrics().heightPixels;
+                view.setTranslationY(height);
                 view.animate()
                         .translationY(0)
                         .setInterpolator(new DecelerateInterpolator(3.f))

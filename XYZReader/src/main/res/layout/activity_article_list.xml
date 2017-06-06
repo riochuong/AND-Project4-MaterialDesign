@@ -5,6 +5,7 @@
     android:layout_height="match_parent"
     app:theme="@style/Theme.Bacon.Detail"
     android:orientation="vertical"
+    android:id="@+id/root_layout"
     android:background="?colorPrimary">
 
     <android.support.design.widget.AppBarLayout
@@ -63,16 +64,36 @@
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         android:layout_height="match_parent">
 
-        <android.support.v7.widget.RecyclerView
-            android:id="@+id/recycler_view"
+        <FrameLayout
+
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:scrollbarStyle="outsideOverlay"
-            android:paddingLeft="@dimen/list_side_margin"
-            android:paddingRight="@dimen/list_side_margin"
-            android:paddingBottom="28dp" />
+            android:layout_height="match_parent">
+
+            <android.support.v7.widget.RecyclerView
+                android:id="@+id/recycler_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:scrollbarStyle="outsideOverlay"
+                android:paddingLeft="@dimen/list_side_margin"
+                android:paddingRight="@dimen/list_side_margin"
+                android:paddingBottom="@dimen/recy_padding_bottom" />
+
+            <TextView
+                android:id="@+id/empty_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:textAppearanceMedium"
+                android:layout_gravity="center_vertical|center_horizontal"
+                android:visibility="gone"
+                android:textColor="@color/ltgray"
+                android:text="@string/no_data_available" />
+
+
+        </FrameLayout>
 
     </android.support.v4.widget.SwipeRefreshLayout>
+
+
 
 </android.support.design.widget.CoordinatorLayout>

@@ -24,6 +24,7 @@
     <dimen name="article_img_margin">10dp</dimen>
     <dimen name="collapse_bar_height">80dp</dimen>
     <dimen name="recy_padding_bottom">20dp</dimen>
+    <dimen name="app_bar_elev">4dp</dimen>
     <integer name="num_row" format="integer">3</integer>
     <integer name="num_col" format="integer">2</integer>
 </resources>

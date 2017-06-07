@@ -4,8 +4,8 @@
                                                 android:background="@color/theme_light"
                                                 android:layout_width="match_parent"
                                                 android:layout_height="match_parent">
-
-
+    
+    
 
     <com.example.xyzreader.ui.ObservableScrollView
         android:id="@+id/scrollview"
